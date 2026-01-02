@@ -32,8 +32,7 @@ Once the deployment completes follow the below instructions to setup BGP endpoin
 
 ![Base Design with BGP Endpoint](img/Base_design_with_BGP_Endpoint.png)
 
-
-Login to NVA1 and NVA2 and run the following commands on both.
+Set the following variables in Azure CLI.
 
 ```bash
 resourceGroup="CommunityRG"
@@ -131,29 +130,29 @@ Let's take a look at the effective routes for VM2 on Spoke-VNET2. VM2 see the ne
 
 ![VM2 Effective Routes](img/VM2-Effective_Routes_UDR.png)
 
-**VPNGW learned Route:**
+**VPNGW learned Route:** (Spoke-VNET2 prefix 172.16.0.0/24)
 
 ![VPN GW Learned Routes](img/VPN_learned_route_before_next_hop.png)
 
-**VPNGW Advertised Route:**
+**VPNGW Advertised Route:**(Spoke-VNET2 prefix 172.16.0.0/24 advertised to branch)
 
 ![VPN GW Advertised Routes](img/VPN_advertised_route_before_next_hop.png)
 
 **VM1:**
 
-VM1 routes traffic via Vhub virtual router. Next hop is the routing service IP
+VM1 routes traffic to 172.16.0.0/24 via Vhub virtual router. Next hop is the routing service IP
 
 ![VM1 Effective Routes](img/VM1_effective_routes_before_next.png)
 
 **Vhub:**
 
-Vhub has two next hop NVA1 and NVA2
+The Virtual Hub forwards traffic destined for 172.16.0.0/24 through either NVA1 or NVA2.
 
 ![Vhub Routes Before Next Hop](img/Vhub_routes_before_next_hop.png)
 
 ### Asymmetric Routing Issue
 
-VM2 identifies the next hop for spoke‑vnet1 (10.1.0.0/24) as the NVA internal load balancer (ILB) because of the static route defined in the UDR. Meanwhile, VM1 forwards traffic to spoke‑vnet2 (172.16.0.0/24) through the Virtual Hub router, which can select either NVA1 or NVA2 as the next hop for that prefix.
+VM2 identifies the next hop for any traffic (0.0.0.0/0) as the NVA internal load balancer (ILB) because of the static route defined in the UDR. Meanwhile, VM1 forwards traffic to spoke‑vnet2 (172.16.0.0/24) through the Virtual Hub router, which can select either NVA1 or NVA2 as the next hop for that prefix.
 This difference in forwarding paths can result in asymmetric routing, for example, traffic from VM1 to VM2 may go out through NVA1 but return through NVA2. While routers can typically handle asymmetric flows without issue, this behavior becomes problematic when traffic passes through stateful devices, which require symmetric paths to maintain session state.
 
 ## Configuring Next-Hop IPs
@@ -201,7 +200,7 @@ Copy paste the above cisco commands.
 Let's look at the Next-hop on the Vhub now:
 
 ![Vhub Routes After Next Hop](img/Vhub_routes_after_next_hop.png)
-<span style="color: orange;">It's ILB IP. VM2 uses the ILB IP as its next hop to reach spoke‑vnet1 (10.1.0.0/24), and VM1 after routing traffic through the Virtual Hub router, will likewise identify the ILB IP as the next hop to reach spoke‑vnet2 (172.16.0.0/24). This alignment in next‑hop selection ensures that both forward and return paths follow the same route, maintaining traffic symmetry.</span>
+<span style="color: orange;">It's ILB IP. VM2 uses the ILB IP as its next hop to reach spoke‑vnet1 due to the default route on the UDR, and VM1 after routing traffic through the Virtual Hub router, will likewise identify the ILB IP as the next hop to reach spoke‑vnet2 (172.16.0.0/24). This alignment in next‑hop selection ensures that both forward and return paths follow the same route, maintaining traffic symmetry.</span>
 
 Now let's ensure Connectivity:
 
@@ -246,19 +245,19 @@ wr mem
 !
 ```
 
-**Learned routes on VPN GW:** <span style="color: green;">172.16.0.0/24 is no more learned by the VPN GW</span>
+**Learned routes on VPN GW:** <span style="color: green;">Spoke-vnet2 prefix (172.16.0.0/24)is no more learned by the VPN GW</span>
 
 ![VPN GW Learned Routes No Advertise](img/VPN_Gateway_learned_routes_no_advertise.png)
 
-**Routes on VM1:** <span style="color: green;">VM1 still learns Spoke-VNET2(172.16.0.0/24) routes</span>
+**Routes on VM1:** <span style="color: green;">VM1 still learns Spoke-Vnet2(172.16.0.0/24) routes</span>
 
 ![VM1 Effective Routes No Advertise](img/VM1_effective_routes_no_advertise.png)
 
-**Connectivity from VM2 to VM1:**
+**Connectivity from VM2 to VM1:** Works!
 
 ![VM2 to VM1 No Advertise](img/VM2_VM1_No_advertise.png)
 
-**Connectivity from VM2 to Branch:** <span style="color: green;">(Does not work)</span>
+**Connectivity from VM2 to Branch:** <span style="color: green;"> Does not work </span>
 
 ![VM2 to Branch No Advertise](img/VM2_branch_No_advertise.png)
 
@@ -306,11 +305,11 @@ wr mem
 !
 ```
 
-**VPN GW Learned routes:** <span style="color: green;">Spoke-VNET2 routes are learned as they are in the same AS</span>
+**VPN GW Learned routes:** <span style="color: green;">Spoke-Vnet2(172.16.0.0/24) routes are learned as they are in the same AS</span>
 
 ![VPN GW Learned Routes Local AS](img/VPN_GW_learned_routes_local_AS.png)
 
-**VPN GW Advertised Routes:** <span style="color: green;">Routes are not advertised to branch by VPN GW as they are in a different AS</span>
+**VPN GW Advertised Routes:** <span style="color: green;">Routes(172.16.0.0/24) are not advertised to branch by VPN GW as they are in a different AS</span>
 
 ![VPN GW Advertised Routes Local AS](img/VPN_GW_Advertised_routes_local_AS.png)
 
@@ -372,7 +371,7 @@ wr mem
 
 ![Branch VM Effective Routes No Export](img/Branch_effective%20routes_no_export.png)
 
-**Testing Connectivity from VM2 to Branch:**
+**Testing Connectivity from VM2 to Branch:** Still works!
 
 ![VM2 to Branch No Export](img/VM2_to_branch_no_export.png)
 
@@ -388,7 +387,7 @@ Let's discuss the change in behavior with NO_EXPORT community if you had an Expr
 
 ![ER with No Export](img/ER_with_no_export.png)
 
-**MSEE/Azure Edge Router:** MSEE learns the routes as ERGW and Vhub router/routing service do not honor No-Export
+**MSEE/Azure Edge Router:** MSEE learns Spoke-vnet2 prefixes(172.16.0.0/24) as ERGW and Vhub router/routing service do not honor No-Export
 
 ![MSEE Routes](img/MSEE_routes.png)
 
