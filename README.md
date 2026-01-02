@@ -24,6 +24,15 @@ The primary goal of this lab is to illustrate the behavior before and after enab
 
 ## Setup Instructions
 
+Download and run the script [community.sh](community.sh) to set up the following base design. We will deploy a cisco 8Kv for this lab.
+
+![Base Design](img/Base_design_no_BGP_Endpoint.png)
+
+Once the deployment completes follow the below instructions to setup BGP endpoints between the Cisco NVA and Vhub.
+
+![Base Design with BGP Endpoint](img/Base_design_with_BGP_Endpoint.png)
+
+
 Login to NVA1 and NVA2 and run the following commands on both.
 
 ```bash
@@ -376,6 +385,8 @@ wr mem
 ## Behavior with ExpressRoute
 
 Let's discuss the change in behavior with NO_EXPORT community if you had an ExpressRoute circuit connected to the Vhub.
+
+![ER with No Export](img/ER_with_no_export.png)
 
 **MSEE/Azure Edge Router:** MSEE learns the routes as ERGW and Vhub router/routing service do not honor No-Export
 
