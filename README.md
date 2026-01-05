@@ -398,3 +398,13 @@ Let's discuss the change in behavior with NO_EXPORT community if you had an Expr
 ### Conclusion
 
 This is because even though GWs and Vhub router do not honor no-export, <span style="color: green;">**MSEE honors no-export**</span> and hence the routes are not advertised by MSEE back to the branch.
+
+## Summary
+
+This lab provided an in‑depth look at how Azure Virtual WAN interprets and supports different well‑known BGP communities. The summary below captures the key results.
+
+| BGP Community | Vhub Honors It? | VPN Gateway Honors It? | MSEE Honors It? | Notes |
+|---------------|-----------------|------------------------|-----------------|-------|
+| NO_ADVERTISE | Yes | Yes | Yes | Vhub prevents further advertisement. VPN GW no longer learns the route. MSEE honors all community attributes. |
+| LOCAL_AS | Yes | Yes | Yes | Route is learned within the local AS only; not advertised to external AS peers. |
+| NO_EXPORT | No | No | Yes | Vhub and VPN GW still advertise routes externally. MSEE honors NO_EXPORT and blocks re‑advertisement to branch. |
