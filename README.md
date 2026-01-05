@@ -16,8 +16,6 @@ Well-known BGP communities are predefined community values that carry specific, 
 | LOCAL_AS | Prevents the route from being advertised outside the local autonomous system. |
 | NO_EXPORT | Prevents the route from being advertised to external BGP peers (eBGP). |
 
-The primary goal of this lab is to illustrate the behavior before and after enabling Next Hop IP in Azure Virtual WAN. It focuses on the impact this configuration has on stateful inspection in Network Virtual Appliances (NVAs), especially when BGP is used for routing.
-
 ## Key Takeaways
 
 - Understand how these communities will impact Route propagation your environment.
