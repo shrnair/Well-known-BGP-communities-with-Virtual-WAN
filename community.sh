@@ -1,4 +1,7 @@
 #!/bin/bash
+#
+# Setup your variables
+#
 az account set --subscription 81d7cc4d-0a43-4a9d-a981-e2fddf05053c
 
 # Pre-Requisite
