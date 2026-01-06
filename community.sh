@@ -1,5 +1,7 @@
 #!/bin/bash
-az account set --subscription 81d7cc4d-0a43-4a9d-a981-e2fddf05053c
+# Prompt user for subscription ID
+read -p "Enter your Azure Subscription ID: " subscriptionId
+az account set --subscription "$subscriptionId"
 
 # Pre-Requisite
 # Check if virtual wan extension is installed if not install it
