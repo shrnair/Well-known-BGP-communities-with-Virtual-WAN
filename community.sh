@@ -4,11 +4,7 @@
 read -p "Enter your Azure Subscription ID: " subscriptionId
 az account set --subscription "$subscriptionId"
 =======
-#
-# Setup your variables
-#
-az account set --subscription 81d7cc4d-0a43-4a9d-a981-e2fddf05053c
->>>>>>> dc6a9a742dd299756299b31f675247e0ee60bae5
+
 
 # Pre-Requisite
 # Check if virtual wan extension is installed if not install it
