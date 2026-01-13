@@ -192,7 +192,7 @@ wr mem
 
 ![VPN GW Learned Routes No Advertise](img/VPN_Gateway_learned_routes_no_advertise.png)
 
-**Routes on VM1:** <span style="color: green;">VM1 still learns Spoke-Vnet2(172.16.0.0/24) routes</span>
+**Routes on VM1:** <span style="color: green;">VM1 still learns Spoke-Vnet2(172.16.0.0/24) routes</span> as there is no additional iBGP or eBGP in the path.
 
 ![VM1 Effective Routes No Advertise](img/VM1_effective_routes_no_advertise.png)
 
