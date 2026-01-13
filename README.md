@@ -22,8 +22,13 @@ In this lab, we'll focus on three well-known communities. A subset of these is p
 - Understand how these communities will impact Route propagation your environment.
 
 ## Setup Instructions
+Open your Azure CLI Bash and run the following commands to deploy the base design for the lab:
 
-Download and run the script [community.sh](community.sh) to set up the following base design. We will deploy a cisco 8Kv for this lab.
+```bash
+wget -q -O community.sh https://raw.githubusercontent.com/shrnair/Well-known-BGP-communities-with-Virtual-WAN/refs/heads/main/community.sh
+chmod +x community.sh
+./community.sh
+```
 
 ![Base Design](img/Base_design_no_BGP_Endpoint.png)
 
