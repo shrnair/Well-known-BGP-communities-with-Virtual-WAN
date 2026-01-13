@@ -1,5 +1,4 @@
 #!/bin/bash
-<<<<<<< HEAD
 # Prompt user for subscription ID
 read -p "Enter your Azure Subscription ID: " subscriptionId
 az account set --subscription "$subscriptionId"
