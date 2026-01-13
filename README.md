@@ -52,14 +52,13 @@ az network bastion ssh --name NVAbastionHost --resource-group $resourceGroup --t
 Copy paste following on Cisco (both NVA1 and NVA2):
 
 ```cisco
-# Next-Hop IP Config
+# Config on the cisco appliance(both NVA1 and NVA2)
 conf t
 route-map RM permit 10 
  set ip next-hop 10.50.0.10
 !
  end
 !
-# Config on the cisco appliance(both NVA1 and NVA2)
 conf t
 router bgp 65005 
 # Vhub virtual router IP1
