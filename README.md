@@ -1,12 +1,13 @@
 # Well-known-BGP-communities-with-Virtual-WAN
+## Overview
 
-Well-known BGP communities with Virtual WAN
+Well-known BGP communities are predefined values with universally recognized semantics across BGP-speaking routers. They allow you to influence routing behavior without intricate per-neighbor policy.
 
-This lab demonstrates how different well-known communities work with Azure Virtual WAN. It covers the deployment of a Virtual WAN, Virtual Hub, and the necessary configurations to enable Next Hop IP and Well-known BGP communities. 
+In this lab, we'll focus on three well-known communities. A subset of these is particularly useful when customers have multiple branch sites over SD-WAN/VPN and need to limit the number of routes advertised from Azure towards ExpressRoute, which enforces a cap of 1,000 routes. Applying the appropriate communities can help keep advertisements under that threshold while preserving intended reachability and policy.
 
-## What are Well-known BGP communities?
+> **Note (Azure Virtual WAN):** If you're using Azure Virtual WAN, you can also leverage route maps to control and limit which routes are advertised from Azure to ExpressRoute, providing an additional, fine-grained mechanism to stay within the 1,000-prefix limit while maintaining your desired routing policy.
 
-Well-known BGP communities are predefined community values that carry specific, universally recognized meanings across BGP-speaking routers. These communities are used to influence routing behavior without requiring complex configuration. In this lab we will focus on the three communities listed below.
+> **Note (Beyond vWAN):** While the examples here center on Virtual WAN, you can achieve similar outcomes when using well-known communities in a Hub-and-Spoke architecture with Azure Route Server (ARS).
 
 ### Well-Known BGP Communities
 
@@ -30,21 +31,7 @@ Once the deployment completes follow the below instructions to setup BGP endpoin
 
 ![Base Design with BGP Endpoint](img/Base_design_with_BGP_Endpoint.png)
 
-Set the following variables in Azure CLI.
-
-```bash
-resourceGroup="CommunityRG"
-location="eastus2"
-vwanName="Vwan"
-vhubName="Vhub"
-vhubAddressPrefix="10.200.0.0/24"
-vpnGatewayName="VpnGateway"
-erGatewayName="ErGateway"
-NVAvnetName="NVA-VNET"
-branchvnet="branch1-Vnet"
-vnet1="Spoke-VNET1"
-vnet2="Spoke-VNET2"
-```
+Due to asymmetric routing introduced by BGP ECMP paths, stateful NVAs can drop return traffic and break sessions. To address this, this lab uses the Next Hop IP configuration in Azure Virtual WAN to force symmetric forwarding (via an internal load balancer), ensuring consistent state tracking and stable inspection through the NVA path.
 
 ### Find the Vhub router's IPs:
 
@@ -65,6 +52,13 @@ az network bastion ssh --name NVAbastionHost --resource-group $resourceGroup --t
 Copy paste following on Cisco (both NVA1 and NVA2):
 
 ```cisco
+# Next-Hop IP Config
+conf t
+route-map RM permit 10 
+ set ip next-hop 10.50.0.10
+!
+ end
+!
 # Config on the cisco appliance(both NVA1 and NVA2)
 conf t
 router bgp 65005 
@@ -81,8 +75,10 @@ address-family ipv4
 network 172.16.0.0 mask 255.255.255.0
 # Vhub virtual router IP1
 neighbor 10.200.0.69 activate
+neighbor 10.200.0.69 route-map RM out
 # Vhub virtual router IP2
 neighbor 10.200.0.70 activate 
+neighbor 10.200.0.70 route-map RM out
 !
 end
 !
@@ -144,61 +140,11 @@ VM1 routes traffic to 172.16.0.0/24 via Vhub virtual router. Next hop is the rou
 
 **Vhub:**
 
-The Virtual Hub forwards traffic destined for 172.16.0.0/24 through either NVA1 or NVA2.
-
-![Vhub Routes Before Next Hop](img/Vhub_routes_before_next_hop.png)
-
-### Asymmetric Routing Issue
-
-VM2 identifies the next hop for any traffic (0.0.0.0/0) as the NVA internal load balancer (ILB) because of the static route defined in the UDR. Meanwhile, VM1 forwards traffic to spoke‑vnet2 (172.16.0.0/24) through the Virtual Hub router, which can select either NVA1 or NVA2 as the next hop for that prefix.
-This difference in forwarding paths can result in asymmetric routing, for example, traffic from VM1 to VM2 may go out through NVA1 but return through NVA2. While routers can typically handle asymmetric flows without issue, this behavior becomes problematic when traffic passes through stateful devices, which require symmetric paths to maintain session state.
-
-## Configuring Next-Hop IPs
-
-### Login via Bastion on NVA1:
-
-```bash
-NVA1ID=$(az vm show --name NVA1 --resource-group $resourceGroup --query "id" --output tsv)
-
-az network bastion ssh --name NVAbastionHost --resource-group $resourceGroup --target-resource-id $NVA1ID --auth-type password --username azureuser
-```
-
-Copy and Paste the following commands on both NVA1 and NVA2 after logging in:
-
-```cisco
-# Next-Hop IPs
-conf t
-route-map RM permit 10 
- set ip next-hop 10.50.0.10
- end
-!
-conf t
-router bgp 65005
-address-family ipv4
-neighbor 10.200.0.69 route-map RM out
-neighbor 10.200.0.70 route-map RM out
-end
-!
-wr mem
-!
-```
-
-### Login via Bastion on NVA2
-
-```bash
-NVA2ID=$(az vm show --name NVA2 --resource-group $resourceGroup --query "id" --output tsv)
-
-az network bastion ssh --name NVAbastionHost --resource-group $resourceGroup --target-resource-id $NVA2ID --auth-type password --username azureuser
-```
-
-Copy paste the above cisco commands.
-
-### Verify Next-Hop Configuration
-
-Let's look at the Next-hop on the Vhub now:
+The Virtual Hub forwards traffic destined for 172.16.0.0/24 through ILB.
 
 ![Vhub Routes After Next Hop](img/Vhub_routes_after_next_hop.png)
-<span style="color: orange;">It's ILB IP. VM2 uses the ILB IP as its next hop to reach spoke‑vnet1 due to the default route on the UDR, and VM1 after routing traffic through the Virtual Hub router, will likewise identify the ILB IP as the next hop to reach spoke‑vnet2 (172.16.0.0/24). This alignment in next‑hop selection ensures that both forward and return paths follow the same route, maintaining traffic symmetry.</span>
+
+<span style="color: orange;"> VM2 uses the ILB IP as its next hop to reach spoke‑vnet1 due to the default route on the UDR, and VM1 after routing traffic through the Virtual Hub router, will likewise identify the ILB IP as the next hop to reach spoke‑vnet2 (172.16.0.0/24). This alignment in next‑hop selection ensures that both forward and return paths follow the same route, maintaining traffic symmetry.</span>
 
 Now let's ensure Connectivity:
 
@@ -261,7 +207,7 @@ wr mem
 
 #### Conclusion
 
-<span style="color: green;">**Vhub Router/Routing service honors No-advertise community.**</span> It is especially useful when customers have multiple branch sites connected via SDWAN/VPN and want to reduce the number of routes advertised down to ExpressRoute which has a limit of 1K routes down.
+<span style="color: green;">**Vhub Router/Routing service honors No-advertise community.**</span> This helps constrain the routes advertised from Azure over SD‑WAN/VPN to ExpressRoute, and can keep them below the ~1,000‑prefix limit.
 
 ### LOCAL_AS Community
 
@@ -317,7 +263,7 @@ wr mem
 
 #### Conclusion
 
-<span style="color: green;">**Vhub Router/Routing service and VPN GW honors LOCAL_AS community.**</span>
+<span style="color: green;">**Vhub Router/Routing service and VPN GW honors LOCAL_AS community.**</span>. While Local AS is less commonly used this will also help constrain the routes advertised from Azure over SD‑WAN/VPN to ExpressRoute, and can keep them below the ~1,000‑prefix limit.
 
 ### NO_EXPORT Community
 
@@ -395,14 +341,14 @@ Let's discuss the change in behavior with NO_EXPORT community if you had an Expr
 
 ### Conclusion
 
-This is because even though GWs and Vhub router do not honor no-export, <span style="color: green;">**MSEE honors no-export**</span> and hence the routes are not advertised by MSEE back to the branch.
+This is because even though GWs and Vhub router do not honor no-export, <span style="color: green;">**MSEE honors no-export**</span> and hence the routes are not advertised by MSEE back to the branch.However, this does not constrain the routes from Azure to ExpressRoute (MSEE), so you can still hit the ~1,000‑prefix limit.
 
 ## Summary
 
 This lab provided an in‑depth look at how Azure Virtual WAN interprets and supports different well‑known BGP communities. The summary below captures the key results.
 
-| BGP Community | Vhub Honors It? | VPN Gateway Honors It? | MSEE Honors It? | Notes |
-|---------------|-----------------|------------------------|-----------------|-------|
-| NO_ADVERTISE | Yes | Yes | Yes | Vhub prevents further advertisement. VPN GW no longer learns the route. MSEE honors all community attributes. |
-| LOCAL_AS | Yes | Yes | Yes | Route is learned within the local AS only; not advertised to external AS peers. |
-| NO_EXPORT | No | No | Yes | Vhub and VPN GW still advertise routes externally. MSEE honors NO_EXPORT and blocks re‑advertisement to branch. |
+| BGP Community | vHub Honors It? | VPN Gateway Honors It? | MSEE Honors It? | Will Help Limit to ~1K? |
+|---------------|-----------------|------------------------|-----------------|-------------------------|
+| NO_ADVERTISE | Yes | Yes | Yes | Yes |
+| LOCAL_AS | Yes | Yes | Yes | Yes |
+| NO_EXPORT | No | No | Yes | No |
